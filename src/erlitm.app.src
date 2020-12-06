@@ -1,0 +1,11 @@
+{application, erlitm,
+ [{description, "Erlang In The Middle Transparent Proxy"},
+  {vsn, "0.1.0"},
+  {registered, []},
+  {mod, {erlitm_app, []}},
+  {applications,
+   [kernel,
+    stdlib]},
+  {env,[]},
+  {modules, []}
+ ]}.
