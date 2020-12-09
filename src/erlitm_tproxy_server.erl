@@ -60,7 +60,7 @@
 start_link(Tag) ->
     gen_server:start_link({local, ?SERVER}, ?MODULE, {Tag, self()}, []).
 
--spec forward(pid(), proto(), socket:sockaddr(), socket:sockaddr(), 0..255, iolist()) -> ok.
+-spec forward(pid(), proto(), {inet:ip_address(), inet:port_number()}, {inet:ip_address(), inet:port_number()}, 0..255, iolist()) -> ok.
 forward(Pid, Proto, SrcAddr, DstAddr, TTL, Data) ->
     gen_server:cast(Pid, {forward, Proto, SrcAddr, DstAddr, TTL, Data}).
 
@@ -144,9 +144,9 @@ handle_select_abort({SelectRef, Reason}, #state{recv_udp = #select_info{ref = Se
     recv_udp(State).
 
 handle_message(MsgHdr, State) ->
-    #{addr := SrcFullAddr, ctrl := MsgCtrl, iov := Data} = MsgHdr,
-    #{{ip, origdstaddr} := DstFullAddr, {ip, ttl} := TTL} = decode_msg_ctrl(MsgCtrl, #{}),
-    State#state.handler ! {State#state.tag, {udp, SrcFullAddr, DstFullAddr, TTL, Data}},
+    #{addr := #{addr := SrcAddr, port := SrcPort}, ctrl := MsgCtrl, iov := Data} = MsgHdr,
+    #{{ip, origdstaddr} := #{addr := DstAddr, port := DstPort}, {ip, ttl} := TTL} = decode_msg_ctrl(MsgCtrl, #{}),
+    State#state.handler ! {State#state.tag, {udp, {SrcAddr, SrcPort}, {DstAddr, DstPort}, TTL, Data}},
     State.
 
 decode_msg_ctrl([#{level := Level, type := Type, data := Data} | Rest], Acc) ->
@@ -159,13 +159,13 @@ fwd_udp_sock() ->
     ok = socket:setopt(Sock, ip, hdrincl, true),
     Sock.
 
-forward_udp(#{addr := SrcAddr, port := SrcPort}, #{addr := DstAddr, port := DstPort}=DstFullAddr, TTL, Data, State) ->
+forward_udp({SrcAddr, SrcPort}, {DstAddr, DstPort}, TTL, Data, State) ->
     DataLen = iolist_size(Data),
 
     IpHdr = #ip_hdr{version = 4, ttl = TTL, proto = ?PROTO_UDP, src = SrcAddr, dst = DstAddr},
     UdpHdr = #udp_hdr{src_port = SrcPort, dst_port = DstPort, len = 8 + DataLen},
 
-    SendMsgHdr = #{addr => DstFullAddr, iov => [ip_hdr(IpHdr), udp_hdr(UdpHdr), Data], ctrl => [], flags => []},
+    SendMsgHdr = #{addr => sockaddr({DstAddr, DstPort}), iov => [ip_hdr(IpHdr), udp_hdr(UdpHdr), Data], ctrl => [], flags => []},
     case socket:sendmsg(State#state.fwd_udp_sock, SendMsgHdr) of
         ok              -> ok;
         {ok, Remaining} -> ?LOG_WARNING("sendmsg truncated ~b bytes", [erlang:iolist_size(Remaining)])
@@ -192,3 +192,8 @@ udp_hdr(Hdr) ->
        (Hdr#udp_hdr.dst_port):16,
        (Hdr#udp_hdr.len):16,
        (Hdr#udp_hdr.cksum):16 >>.
+
+sockaddr({Addr, Port}) when tuple_size(Addr) =:= 4 ->
+    #{family => inet, addr => Addr, port => Port};
+sockaddr({Addr, Port}) when tuple_size(Addr) =:= 16 ->
+    #{family => inet6, addr => Addr, port => Port}.
