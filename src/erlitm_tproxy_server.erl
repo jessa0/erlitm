@@ -60,7 +60,7 @@
 start_link(Tag) ->
     gen_server:start_link({local, ?SERVER}, ?MODULE, {Tag, self()}, []).
 
--spec forward(pid(), proto(), {inet:ip_address(), inet:port_number()}, {inet:ip_address(), inet:port_number()}, 0..255, iolist()) -> ok.
+-spec forward(pid(), proto(), {inet:ip_address(), inet:port_number()}, {inet:ip_address(), inet:port_number()}, 0..255, iodata()) -> ok.
 forward(Pid, Proto, SrcAddr, DstAddr, TTL, Data) ->
     gen_server:cast(Pid, {forward, Proto, SrcAddr, DstAddr, TTL, Data}).
 

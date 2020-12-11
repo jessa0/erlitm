@@ -41,7 +41,7 @@
 start_link(Tag) ->
     gen_server:start_link({local, ?SERVER}, ?MODULE, {Tag, self()}, []).
 
--spec send(pid(), proto(), {inet:ip_address(), inet:port_number()}, {inet:ip_address(), inet:port_number()}, ancillary_data(), iolist()) -> ok.
+-spec send(pid(), proto(), {inet:ip_address(), inet:port_number()}, {inet:ip_address(), inet:port_number()}, ancillary_data(), iodata()) -> ok.
 send(Pid, Proto, SrcAddr, DstAddr, AncData, Data) ->
     gen_server:cast(Pid, {send, Proto, SrcAddr, DstAddr, AncData, Data}).
 
