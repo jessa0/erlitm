@@ -4,7 +4,7 @@
 -include_lib("kernel/include/logger.hrl").
 
 %% API
--export([start_link/1, forward/6]).
+-export([start_link/3, forward/6]).
 
 %% gen_server callbacks
 -export([init/1,
@@ -56,9 +56,9 @@
 %% public API
 %%
 
--spec start_link(term()) -> {ok, pid()} | {error, any()}.
-start_link(Tag) ->
-    gen_server:start_link({local, ?SERVER}, ?MODULE, {Tag, self()}, []).
+-spec start_link(proto(), inet:port_number(), term()) -> {ok, pid()} | {error, any()}.
+start_link(Protocol, ListenPort, Tag) ->
+    gen_server:start_link({local, ?SERVER}, ?MODULE, {Protocol, ListenPort, Tag, self()}, []).
 
 -spec forward(pid(), proto(), {inet:ip_address(), inet:port_number()}, {inet:ip_address(), inet:port_number()}, 0..255, iodata()) -> ok.
 forward(Pid, Proto, SrcAddr, DstAddr, TTL, Data) ->
@@ -68,9 +68,9 @@ forward(Pid, Proto, SrcAddr, DstAddr, TTL, Data) ->
 %% gen_server callbacks
 %%
 
-init({Tag, HandlerPid}) ->
+init({udp, ListenPort, Tag, HandlerPid}) ->
     ?LOG_INFO(?MODULE_STRING " starting on node ~1000p", [node()]),
-    RecvSock = recv_udp_sock(),
+    RecvSock = recv_udp_sock(ListenPort),
     SendSock = fwd_udp_sock(),
     gen_server:cast(self(), recv_udp),
 
@@ -109,9 +109,9 @@ terminate(Reason, State) ->
 %% internal
 %%
 
-recv_udp_sock() ->
+recv_udp_sock(ListenPort) ->
     {ok, Sock} = socket:open(inet, dgram, udp),
-    {ok, _Port} = socket:bind(Sock, #{family => inet, addr => loopback, port => amongerl_app:tproxy_port()}),
+    {ok, _Port} = socket:bind(Sock, #{family => inet, addr => loopback, port => ListenPort}),
     ok = socket:setopt(Sock, otp, rcvbuf, ?RCVBUF),
     ok = socket:setopt(Sock, otp, rcvctrlbuf, ?RCVCTRLBUF),
     ok = socket:setopt(Sock, socket, reuseaddr, true),
