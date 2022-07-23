@@ -111,7 +111,7 @@ terminate(Reason, State) ->
 
 recv_udp_sock(ListenPort) ->
     {ok, Sock} = socket:open(inet, dgram, udp),
-    {ok, _Port} = socket:bind(Sock, #{family => inet, addr => loopback, port => ListenPort}),
+    ok = socket:bind(Sock, #{family => inet, addr => loopback, port => ListenPort}),
     ok = socket:setopt(Sock, otp, rcvbuf, ?RCVBUF),
     ok = socket:setopt(Sock, otp, rcvctrlbuf, ?RCVCTRLBUF),
     ok = socket:setopt(Sock, socket, reuseaddr, true),
